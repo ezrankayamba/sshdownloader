@@ -14,10 +14,10 @@ class DirectoryDesc:
         return f'{self.src} => {self.dst}'
 
 
-def connect(pem_key_path: str = 'LightsailDefaultKey-eu-west-2.pem'):
+def connect(pem_key_path: str):
     host = "3.9.198.111"
     special_account = "ubuntu"
-    pkey = paramiko.RSAKey.from_private_key_file(key)
+    pkey = paramiko.RSAKey.from_private_key_file(pem_key_path)
     client = paramiko.SSHClient()
     policy = paramiko.AutoAddPolicy()
     client.set_missing_host_key_policy(policy)
@@ -26,8 +26,8 @@ def connect(pem_key_path: str = 'LightsailDefaultKey-eu-west-2.pem'):
 
 
 @decorators.timer()
-def main(base_path: str = '/home/ubuntu/apps/twiga_sales/backend_rest/media', dirs: list[DirectoryDesc] = None, date_from=None, date_to=None):
-    client = connect()
+def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, date_to=None):
+    client = connect(key)
     print(client)
 
     con = sqlite3.connect("download.db")
@@ -79,10 +79,12 @@ if __name__ == '__main__':
     parser.add_argument("--frm", help="Date from in YYYY-MM-DD")
     parser.add_argument("--to", help="Date to in YYYY-MM-DD")
     parser.add_argument("--key", help="PEM key file path")
+    parser.add_argument("--rpath", help="Remote base path")
     cmd_args = parser.parse_args()
     date_from = datetime.strptime(cmd_args.frm, '%Y-%m-%d').date()
     date_to = datetime.strptime(cmd_args.to, '%Y-%m-%d').date()
     key = cmd_args.key
+    base_path = cmd_args.rpath
 
     dirs = []
     with open("desc.txt") as f:
@@ -91,4 +93,4 @@ if __name__ == '__main__':
                 parts = line.split(":")
                 dirs.append(DirectoryDesc(parts[0].strip(), parts[1].strip()))
     print(dirs)
-    main(dirs=dirs, date_from=date_from, date_to=date_to)
+    main(key, base_path, dirs=dirs, date_from=date_from, date_to=date_to)
