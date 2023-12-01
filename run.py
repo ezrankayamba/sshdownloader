@@ -33,12 +33,15 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
     con = sqlite3.connect("download.db")
     cur = con.cursor()
 
+    @decorators.timer()
     def record_download(l_path: str, m_date, category: str, size: float):
         sql = f"INSERT INTO downloads (path, mdate, category, size) VALUES ('{l_path}', '{m_date}', '{category}', {size})"
+        print(sql)
         cur.execute(
             sql).fetchone()
         con.commit()
 
+    @decorators.timer()
     def check_exists(l_path: str) -> bool:
         sql = f"SELECT * FROM downloads WHERE path = '{l_path}'"
         res = cur.execute(
