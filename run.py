@@ -5,9 +5,6 @@ import decorators
 import sqlite3
 
 
-key = r"C:\NKAYAMBA\Keys\Nezatech\LightsailDefaultKey-eu-west-2.pem"
-
-
 class DirectoryDesc:
     def __init__(self, src, dst) -> None:
         self.src = src
@@ -17,7 +14,7 @@ class DirectoryDesc:
         return f'{self.src} => {self.dst}'
 
 
-def connect():
+def connect(pem_key_path: str = 'LightsailDefaultKey-eu-west-2.pem'):
     host = "3.9.198.111"
     special_account = "ubuntu"
     pkey = paramiko.RSAKey.from_private_key_file(key)
@@ -65,7 +62,7 @@ def main(base_path: str = '/home/ubuntu/apps/twiga_sales/backend_rest/media', di
                     m_time = datetime.fromtimestamp(p.st_mtime).date()
                     if m_time >= date_from and m_time <= date_to:
                         r_path = f'{base_path}/{d.src}/{p.filename}'
-                        l_path = f'download\{d.dst}\{p.filename}'
+                        l_path = f'{d.dst}\{p.filename}'
                         paths.append((r_path, l_path, m_time))
 
             paths.sort(key=lambda p: p[2], reverse=True)
@@ -81,9 +78,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--frm", help="Date from in YYYY-MM-DD")
     parser.add_argument("--to", help="Date to in YYYY-MM-DD")
+    parser.add_argument("--key", help="PEM key file path")
     cmd_args = parser.parse_args()
     date_from = datetime.strptime(cmd_args.frm, '%Y-%m-%d').date()
     date_to = datetime.strptime(cmd_args.to, '%Y-%m-%d').date()
+    key = cmd_args.key
 
     dirs = []
     with open("desc.txt") as f:

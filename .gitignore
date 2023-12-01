@@ -1,5 +1,5 @@
 .venv
-download
+downloads
 logs
 __pycache__
 desc.txt
