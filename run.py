@@ -33,8 +33,8 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
     con = sqlite3.connect("download.db")
     cur = con.cursor()
 
-    def record_download(l_path: str, m_date):
-        sql = f"INSERT INTO downloads (path, mdate) VALUES ('{l_path}', '{m_date}')"
+    def record_download(l_path: str, m_date, category: str, size: float):
+        sql = f"INSERT INTO downloads (path, mdate, category, size) VALUES ('{l_path}', '{m_date}', '{category}', {size})"
         cur.execute(
             sql).fetchone()
         con.commit()
@@ -46,10 +46,10 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
         return True if res else False
 
     @decorators.timer()
-    def download_file(sftp, r_path, l_path, m_time):
+    def download_file(d: DirectoryDesc, sftp, r_path, l_path, m_time, file_size):
         if not check_exists(l_path):
             sftp.get(r_path, l_path)
-            record_download(l_path, m_time)
+            record_download(l_path, m_time, d.src, file_size)
             print(f'Downloaded: {r_path} => {l_path}/{m_time}')
 
     if dirs:
@@ -60,15 +60,16 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
                 remote_dirs = sftp.listdir_attr(path=f'{base_path}/{d.src}')
                 for p in remote_dirs:
                     m_time = datetime.fromtimestamp(p.st_mtime).date()
+                    file_size = p.st_size/(1024.0*1024.0)  # in MB
                     if m_time >= date_from and m_time <= date_to:
                         r_path = f'{base_path}/{d.src}/{p.filename}'
                         l_path = f'{d.dst}\{p.filename}'
-                        paths.append((r_path, l_path, m_time))
+                        paths.append((r_path, l_path, m_time, file_size))
 
             paths.sort(key=lambda p: p[2], reverse=True)
             with client.open_sftp() as sftp:
                 for p in paths:
-                    download_file(sftp, p[0], p[1], p[2])
+                    download_file(d, sftp, p[0], p[1], p[2], p[3])
 
     client.close()
     print('Done')
