@@ -1,2 +1,7 @@
 .venv
 download
+logs
+__pycache__
+desc.txt
+db.*
+*.db

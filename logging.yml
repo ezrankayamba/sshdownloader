@@ -1,0 +1,31 @@
+version: 1
+disable_existing_loggers: false
+formatters:
+   standard:
+      format: "%(asctime)s %(levelname)-8s %(name)-15s %(message)s"
+handlers:
+   console:
+      class: logging.StreamHandler
+      formatter: standard
+      level: DEBUG
+      stream: ext://sys.stdout
+   file:
+      class: common_logging.SizedTimedRotatingFileHandler
+      formatter: standard
+      filename: ./logs/app.log
+      level: DEBUG
+      maxBytes: 104857600 # 100MB
+      backupCount: 7
+loggers:
+   uvicorn:
+      level: ERROR
+   kafka:
+      level: ERROR
+   paramiko:
+      level: ERROR
+   passlib:
+      level: ERROR
+root:
+   level: DEBUG
+   handlers: [console, file]
+   propagate: no
