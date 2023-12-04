@@ -3,6 +3,9 @@ import paramiko
 import argparse
 import decorators
 import sqlite3
+import common_logging as logging
+
+logger = logging.getLogger(__name__)
 
 
 class DirectoryDesc:
@@ -53,14 +56,15 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
         if not check_exists(l_path):
             sftp.get(r_path, l_path)
             record_download(l_path, m_time, d.src, file_size)
-            print(f'Downloaded: {r_path} => {l_path}/{m_time}')
+            logger.debug(f'Downloaded: {r_path} => {l_path}/{m_time}')
 
     if dirs:
         for d in dirs:
             paths = []
             with client.open_sftp() as sftp:
-                print('Connected ...')
+                logger.debug('Connected ...')
                 remote_dirs = sftp.listdir_attr(path=f'{base_path}/{d.src}')
+                logger.debug(f'{d.src} => {len(remote_dirs)}')
                 for p in remote_dirs:
                     m_time = datetime.fromtimestamp(p.st_mtime).date()
                     file_size = p.st_size/(1024.0*1024.0)  # in MB
@@ -70,6 +74,7 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
                         paths.append((r_path, l_path, m_time, file_size))
 
             paths.sort(key=lambda p: p[2], reverse=True)
+            logger.debug(f'{d.src} Filtered=> {len(paths)}')
             with client.open_sftp() as sftp:
                 for p in paths:
                     download_file(d, sftp, p[0], p[1], p[2], p[3])
