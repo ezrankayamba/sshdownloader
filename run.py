@@ -31,15 +31,12 @@ def connect(pem_key_path: str):
 @decorators.timer()
 def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, date_to=None):
     client = connect(key)
-    print(client)
-
     con = sqlite3.connect("download.db")
     cur = con.cursor()
 
     @decorators.timer()
     def record_download(l_path: str, m_date, category: str, size: float):
         sql = f"INSERT INTO downloads (path, mdate, category, size) VALUES ('{l_path}', '{m_date}', '{category}', {size})"
-        print(sql)
         cur.execute(
             sql).fetchone()
         con.commit()
@@ -80,7 +77,7 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
                     download_file(d, sftp, p[0], p[1], p[2], p[3])
 
     client.close()
-    print('Done')
+    logger.debug('Done')
 
 
 if __name__ == '__main__':
@@ -101,5 +98,5 @@ if __name__ == '__main__':
             if not line.startswith("#"):
                 parts = line.split(":")
                 dirs.append(DirectoryDesc(parts[0].strip(), parts[1].strip()))
-    print(dirs)
+    logger.debug(dirs)
     main(key, base_path, dirs=dirs, date_from=date_from, date_to=date_to)
