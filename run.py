@@ -51,7 +51,6 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
 
     @decorators.timer()
     def check_exists(l_path: str) -> bool:
-        print('Check exists...')
         sql = f"SELECT * FROM downloads WHERE path = '{l_path}'"
         con = db_conn()
         cur = con.cursor()
@@ -62,7 +61,6 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
     @decorators.timer()
     def download_file(d: DirectoryDesc, sftp, r_path, l_path, m_time, file_size):
         try:
-            print('Download file...')
             if not check_exists(l_path):
                 sftp.get(r_path, l_path)
                 record_download(l_path, m_time, d.src, file_size)
@@ -77,8 +75,7 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
         for d in dirs:
             paths = []
             with client.open_sftp() as sftp:
-                logger.debug('Connected ...')
-                remote_dirs = sftp.listdir_attr(path=f'{base_path}/{d.src}')
+                remote_dirs = sftp.listdir_iter(path=f'{base_path}/{d.src}')
                 logger.debug(f'{d.src} => {len(remote_dirs)}')
                 for p in remote_dirs:
                     m_time = datetime.fromtimestamp(p.st_mtime).date()
@@ -100,7 +97,7 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
             with ThreadPoolExecutor(max_workers=int(os.getenv("POOL_SIZE", 10))) as executor:
                 futures = {executor.submit(download, p): p for p in paths}
                 for future in as_completed(futures):
-                    print('Done...')
+                    pass
 
     client.close()
     logger.debug('Done')
