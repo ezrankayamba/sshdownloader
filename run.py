@@ -1,4 +1,5 @@
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from contextlib import contextmanager
 from datetime import datetime
 import argparse
 import os
@@ -25,6 +26,14 @@ def db_conn():
     return sqlite3.connect("download.db")
 
 
+@contextmanager
+def closing_ctx(res):
+    try:
+        yield res
+    finally:
+        res.close()
+
+
 def connect(pem_key_path: str):
     host = "3.9.198.111"
     special_account = "ubuntu"
@@ -38,8 +47,6 @@ def connect(pem_key_path: str):
 
 @decorators.timer()
 def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, date_to=None):
-    client = connect(key)
-
     @decorators.timer()
     def record_download(l_path: str, m_date, category: str, size: float):
         con = db_conn()
@@ -75,27 +82,27 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
         host = "3.9.198.111"
         special_account = "ubuntu"
         for d in dirs:
-
             paths = []
-            with client.open_sftp() as sftp:
-                remote_dirs = sftp.listdir_iter(path=f'{base_path}/{d.src}')
-                for p in remote_dirs:
-                    m_time = datetime.fromtimestamp(p.st_mtime).date()
-                    file_size = p.st_size/(1024.0*1024.0)  # in MB
-                    if m_time >= date_from and m_time <= date_to:
-                        r_path = f'{base_path}/{d.src}/{p.filename}'
-                        l_path = f'{d.dst}\{p.filename}'
-                        paths.append((r_path, l_path, m_time, file_size))
+            with closing_ctx(connect(key)) as client:
+                with client.open_sftp() as sftp:
+                    remote_dirs = sftp.listdir_iter(
+                        path=f'{base_path}/{d.src}')
+                    for p in remote_dirs:
+                        m_time = datetime.fromtimestamp(p.st_mtime).date()
+                        file_size = p.st_size/(1024.0*1024.0)  # in MB
+                        if m_time >= date_from and m_time <= date_to:
+                            r_path = f'{base_path}/{d.src}/{p.filename}'
+                            l_path = f'{d.dst}\{p.filename}'
+                            paths.append((r_path, l_path, m_time, file_size))
 
             paths.sort(key=lambda p: p[2], reverse=True)
             logger.debug(f'{d.src} Filtered=> {len(paths)}')
 
             def download(p):
-
                 with pysftp.Connection(host=host, username=special_account, private_key=key) as sftp:
                     download_file(d, sftp, p[0], p[1], p[2], p[3])
 
-            with ThreadPoolExecutor(max_workers=int(os.getenv("POOL_SIZE", 10))) as executor:
+            with ThreadPoolExecutor(max_workers=int(os.getenv("POOL_SIZE", 4))) as executor:
                 futures = {executor.submit(download, p): p for p in paths}
                 for future in as_completed(futures):
                     pass
