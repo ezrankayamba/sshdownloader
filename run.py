@@ -1,9 +1,13 @@
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from datetime import datetime
 import paramiko
 import argparse
+import os
+import pysftp
 import decorators
 import sqlite3
 import common_logging as logging
+import utils
 
 logger = logging.getLogger(__name__)
 
@@ -28,14 +32,18 @@ def connect(pem_key_path: str):
     return client
 
 
+def db_conn():
+    return sqlite3.connect("download.db")
+
+
 @decorators.timer()
 def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, date_to=None):
     client = connect(key)
-    con = sqlite3.connect("download.db")
-    cur = con.cursor()
 
     @decorators.timer()
     def record_download(l_path: str, m_date, category: str, size: float):
+        con = db_conn()
+        cur = con.cursor()
         sql = f"INSERT INTO downloads (path, mdate, category, size) VALUES ('{l_path}', '{m_date}', '{category}', {size})"
         cur.execute(
             sql).fetchone()
@@ -43,17 +51,27 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
 
     @decorators.timer()
     def check_exists(l_path: str) -> bool:
+        print('Check exists...')
         sql = f"SELECT * FROM downloads WHERE path = '{l_path}'"
+        con = db_conn()
+        cur = con.cursor()
         res = cur.execute(
             sql).fetchone()
         return True if res else False
 
     @decorators.timer()
     def download_file(d: DirectoryDesc, sftp, r_path, l_path, m_time, file_size):
-        if not check_exists(l_path):
-            sftp.get(r_path, l_path)
-            record_download(l_path, m_time, d.src, file_size)
-            logger.debug(f'Downloaded: {r_path} => {l_path}/{m_time}')
+        try:
+            print('Download file...')
+            if not check_exists(l_path):
+                sftp.get(r_path, l_path)
+                record_download(l_path, m_time, d.src, file_size)
+                logger.debug(f'Downloaded: {r_path} => {l_path}/{m_time}')
+            else:
+                logger.debug(f'Exists: {l_path}')
+        except Exception as ex:
+            logger.error(f'Exception: {ex}')
+            utils.print_stack_trace()
 
     if dirs:
         for d in dirs:
@@ -72,9 +90,17 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
 
             paths.sort(key=lambda p: p[2], reverse=True)
             logger.debug(f'{d.src} Filtered=> {len(paths)}')
-            with client.open_sftp() as sftp:
-                for p in paths:
+
+            def download(p):
+                host = "3.9.198.111"
+                special_account = "ubuntu"
+                with pysftp.Connection(host=host, username=special_account, private_key=key) as sftp:
                     download_file(d, sftp, p[0], p[1], p[2], p[3])
+
+            with ThreadPoolExecutor(max_workers=int(os.getenv("POOL_SIZE", 10))) as executor:
+                futures = {executor.submit(download, p): p for p in paths}
+                for future in as_completed(futures):
+                    print('Done...')
 
     client.close()
     logger.debug('Done')
