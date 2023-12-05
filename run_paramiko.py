@@ -1,8 +1,8 @@
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from datetime import datetime
+import paramiko
 import argparse
 import os
-import paramiko
 import pysftp
 import decorators
 import sqlite3
@@ -21,10 +21,6 @@ class DirectoryDesc:
         return f'{self.src} => {self.dst}'
 
 
-def db_conn():
-    return sqlite3.connect("download.db")
-
-
 def connect(pem_key_path: str):
     host = "3.9.198.111"
     special_account = "ubuntu"
@@ -34,6 +30,10 @@ def connect(pem_key_path: str):
     client.set_missing_host_key_policy(policy)
     client.connect(host, username=special_account, pkey=pkey)
     return client
+
+
+def db_conn():
+    return sqlite3.connect("download.db")
 
 
 @decorators.timer()
@@ -72,13 +72,11 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
             utils.print_stack_trace()
 
     if dirs:
-        host = "3.9.198.111"
-        special_account = "ubuntu"
         for d in dirs:
-
             paths = []
             with client.open_sftp() as sftp:
                 remote_dirs = sftp.listdir_iter(path=f'{base_path}/{d.src}')
+                logger.debug(f'{d.src} => {len(remote_dirs)}')
                 for p in remote_dirs:
                     m_time = datetime.fromtimestamp(p.st_mtime).date()
                     file_size = p.st_size/(1024.0*1024.0)  # in MB
@@ -91,7 +89,8 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
             logger.debug(f'{d.src} Filtered=> {len(paths)}')
 
             def download(p):
-
+                host = "3.9.198.111"
+                special_account = "ubuntu"
                 with pysftp.Connection(host=host, username=special_account, private_key=key) as sftp:
                     download_file(d, sftp, p[0], p[1], p[2], p[3])
 
@@ -99,6 +98,9 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
                 futures = {executor.submit(download, p): p for p in paths}
                 for future in as_completed(futures):
                     pass
+
+    client.close()
+    logger.debug('Done')
 
 
 if __name__ == '__main__':
