@@ -97,7 +97,12 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
                             paths.append((r_path, l_path, m_time, file_size))
 
             paths.sort(key=lambda p: p[2], reverse=True)
-            logger.debug(f'{d.src} Filtered=> {len(paths)}')
+            from_to = None
+            if len(paths):
+                from_to = (paths[-1], paths[0])
+
+            print('\n\n\n------------------------------------')
+            logger.debug(f'{d.src} Filtered=> {len(paths)} => {from_to}')
 
             def download(p):
                 with pysftp.Connection(host=host, username=special_account, private_key=key) as sftp:
