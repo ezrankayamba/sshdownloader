@@ -71,9 +71,10 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
             if not check_exists(l_path):
                 sftp.get(r_path, l_path)
                 record_download(l_path, m_time, d.src, file_size)
-                logger.debug(f'Downloaded: {r_path} => {l_path}/{m_time}')
+                logger.debug(
+                    f'{m_time} - Downloaded: {r_path} => {l_path}/{m_time}')
             else:
-                logger.debug(f'Exists: {l_path}')
+                logger.debug(f'{m_time} - Exists: {l_path}')
         except Exception as ex:
             logger.error(f'Exception: {ex}')
             utils.print_stack_trace()
