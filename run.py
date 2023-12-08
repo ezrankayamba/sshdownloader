@@ -99,7 +99,7 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
             paths.sort(key=lambda p: p[2], reverse=True)
             from_to = None
             if len(paths):
-                from_to = (paths[-1], paths[0])
+                from_to = (paths[-1][2], paths[0][2])
 
             print('\n\n\n------------------------------------')
             logger.debug(f'{d.src} Filtered=> {len(paths)} => {from_to}')
