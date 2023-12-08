@@ -68,13 +68,10 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
     @decorators.timer()
     def download_file(d: DirectoryDesc, sftp, r_path, l_path, m_time, file_size):
         try:
-            if not check_exists(l_path):
-                sftp.get(r_path, l_path)
-                record_download(l_path, m_time, d.src, file_size)
-                logger.debug(
-                    f'{m_time} - Downloaded: {r_path} => {l_path}/{m_time}')
-            else:
-                logger.debug(f'{m_time} - Exists: {l_path}')
+            sftp.get(r_path, l_path)
+            record_download(l_path, m_time, d.src, file_size)
+            logger.debug(
+                f'{m_time} - Downloaded: {r_path} => {l_path}/{m_time}')
         except Exception as ex:
             logger.error(f'Exception: {ex}')
             utils.print_stack_trace()
@@ -94,7 +91,16 @@ def main(key, base_path: str, dirs: list[DirectoryDesc] = None, date_from=None, 
                         if m_time >= date_from and m_time <= date_to:
                             r_path = f'{base_path}/{d.src}/{p.filename}'
                             l_path = f'{d.dst}\{p.filename}'
-                            paths.append((r_path, l_path, m_time, file_size))
+                            try:
+                                if not check_exists(l_path):
+                                    paths.append(
+                                        (r_path, l_path, m_time, file_size))
+                                else:
+                                    logger.debug(
+                                        f'{m_time} - Exists: {l_path}')
+                            except Exception as ex:
+                                logger.error(f'Exception: {ex}')
+                                utils.print_stack_trace()
 
             paths.sort(key=lambda p: p[2], reverse=True)
             from_to = None
